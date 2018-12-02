@@ -27,13 +27,15 @@ tags:
 - 异步响应不及时可能造成之前的请求后至, 让数据出错.
 
 网上较推荐的解决方案,就是使用**响应式编程框架**.
-大体分为[RxSwift](https://github.com/ReactiveX/RxSwift)和[ReactiveCocoa](https://github.com/ReactiveCocoa/ReactiveCocoa)/[ReactiveSwift](https://github.com/ReactiveCocoa/ReactiveSwift).
+大体分为[RxSwift](https://github.com/ReactiveX/RxSwift)和[ReactiveCocoa](https://github.com/ReactiveCocoa/ReactiveCocoa)/
+[ReactiveSwift](https://github.com/ReactiveCocoa/ReactiveSwift).
 
 **ReactiveCocoa**是从OC时代就开始有的, 在Swift时代迁移过来, 开始的时候只是单纯的调用OC源码混编, 到后来衍生出了**ReactiveSwift**.
 而**RxSwift**则是"原生"Swift诞生的.
 
 
-刚好公司的项目里面本来已经使用了[Swagger](https://github.com/swagger-api/swagger-codegen)来自动生成网络请求业务的代码, 自带[Moya](https://github.com/Moya/Moya)框架.
+刚好公司的项目里面本来已经使用了[Swagger](https://github.com/swagger-api/swagger-codegen)来自动生成网络请求业务的代码, 
+自带[Moya](https://github.com/Moya/Moya)框架.
 于是就理所当然用了**RxSwift**.
 
 
@@ -120,7 +122,7 @@ self.tableView.rx_pullToRefresh
 
   把原来通过闭包回调的函数都改造成了返回**Observable**的函数, 改造后回调的处理就通过链式调用**Observable**的**Operator**结合函数式编程来传递.
 
-- 函数式*
+- 函数式
   
   把处理回调的函数作为参数传递给**flatMap**和**subscribe**函数.
   
@@ -130,10 +132,176 @@ self.tableView.rx_pullToRefresh
 
   原来每个异步操作都有一个Error的返回, 用闭包回调的方式需要在每次调用函数的时候传入. 
   而使用RxSwift的话, 其实所有Observable是被聚合成了1个, 就是在**subscribe**调用的那个, 而之前聚合起来的Observable的Error都可以在subscribe的**onError**参数里传递处理.
+  
+ 这段代码仍不够完善, 优化方式后面会提到. 但是显而易见, 这一系列异步操作的条理顺序已经出来了, 而如果中间某一环需要修改, 也并不难操作.
 
 ---
 
 ## 并行异步请求处理
 
+照样举例, 下载多张图片然后更新数据库:
+
+分解之后有以下几个函数:
+
+```swift
+// 下载图片
+func downloadImage(withURL: URL) -> (imageData: Data?, error: Error?)
+// 处理下载好的图片
+func handleDownloadImage(imageData: Data)
+
+func handleError(error: Error)
+// 写入数据库
+func updateDatabase()
+```
+
+原来的实现:
+```swift
+let group = DispatchGroup()
+
+DispatchQueue.global().async(group: group, execute: { [unowned self] in
+    let res = self.downloadImage(withURL: url1)
+    if let data = res.imageData {
+        self.handleDownloadImage(imageData: data)
+    }else if let error = res.error {
+        self.handleError(error: error)
+    }
+})
+DispatchQueue.global().async(group: group, execute: { [unowned self] in
+    let res = self.downloadImage(withURL: url2)
+    if let data = res.imageData {
+        self.handleDownloadImage(imageData: data)
+    }else if let error = res.error {
+             self.handleError(error: error)
+    }
+})
+DispatchQueue.global().async(group: group, execute: { [unowned self] in
+    let res = self.downloadImage(withURL: url2)
+    if let data = res.imageData {
+        self.handleDownloadImage(imageData: data)
+    }else if let error = res.error {
+        self.handleError(error: error)
+    }
+})
+
+group.notify(queue: DispatchQueue.main) { [unowned self] in
+    self.updateDatabase()
+}
+```
+
+**RxSwift**的做法:
+
+```swift
+Observable.zip(self.rx_downloadImage(withURL: url1), self.rx_downloadImage(withURL: url2), self.rx_downloadImage(withURL: url3))
+          .subscribe(onNext: {[unowned self] res in self.updateDatabase()}
+                     onError: {[unowned self] err in self.handleError(error: error)})
+```
+
+## 旧函数改造
+
+ReactiveX框架确实很适合用来处理异步场景,只要使用者习惯了用return Observable来代替block, 并且要在Observable中传递处理结果.
+
+RxSwift提供了一个比较简单的方式创建Observable, 就是Observable的静态函数**create**:
+
+```swift
+/**
+Creates an observable sequence from a specified subscribe method implementation.
+    
+- seealso: [create operator on reactivex.io](http://reactivex.io/documentation/operators/create.html)
+    
+- parameter subscribe: Implementation of the resulting observable sequence's `subscribe` method.
+- returns: The observable sequence with the specified implementation for the `subscribe` method.
+*/
+public static func create(_ subscribe: @escaping (RxSwift.AnyObserver<Self.E>) -> Disposable) -> RxSwift.Observable<Self.E>
+```
+
+这个函数只有一个闭包参数需要传入, 而这个闭包会给我们提供一个**Observer**的实例, 我们的操作都会在这个闭包里面执行, 而结果就通过**Observer**来派发, 比方上面的下载图片函数:
+
+```swift
+func rx_downloadImage(withURL url: URL) -> Observable<Data> {
+    return Observable.create({ [unowned self] observer -> Disposable in 
+        DispatchQueue.global().async({
+        let res = self.downloadImage(withURL: url)
+                if let data = res.data {
+                    observer.onNext(data)
+                    observer.onCompleted()
+                }else if let error = res.error {
+                    observer.onError(error)
+                }
+        })
+        return Disposables.create()
+    })
+}
+```
+
+这样就封装了一个在内部子线程调用旧函数**downloadImage**的函数了. 对于子线程调用这个需求, 这里比较简单粗暴的用了GCD.
+
+## 队列的切换
+
+其实对于还可以通过RxSwift提供的办法写得更好看.
+那就是通过:
+
+```swift
+/**
+ Wraps the source sequence in order to run its observer callbacks on the specified scheduler.
+
+ This only invokes observer callbacks on a `scheduler`. In case the subscription and/or unsubscription
+ actions have side-effects that require to be run on a scheduler, use `subscribeOn`.
+
+- seealso: [observeOn operator on reactivex.io](http://reactivex.io/documentation/operators/observeon.html)
+
+- parameter scheduler: Scheduler to notify observers on.
+- returns: The source sequence whose observations happen on the specified scheduler.
+*/
+public func observeOn(_ scheduler: ImmediateSchedulerType) -> PrimitiveSequence<Trait, Element> 
+    
+/**
+ Wraps the source sequence in order to run its subscription and unsubscription logic on the specified 
+ scheduler. 
+    
+ This operation is not commonly used.
+    
+ This only performs the side-effects of subscription and unsubscription on the specified scheduler. 
+    
+In order to invoke observer callbacks on a `scheduler`, use `observeOn`.
+
+- seealso: [subscribeOn operator on reactivex.io](http://reactivex.io/documentation/operators/subscribeon.html)
+    
+- parameter scheduler: Scheduler to perform subscription and unsubscription actions on.
+- returns: The source sequence whose subscriptions and unsubscriptions happen on the specified scheduler.
+*/
+public func subscribeOn(_ scheduler: ImmediateSchedulerType)
+```
+
+其中**subscribeOn**是指定了Observable是在什么队列被订阅的, 这个队列同时也会是被订阅的Observable任务执行所在的队列.
+ 
+而**observeOn**则是指定了处理结果所在的队列, 就是我们最后调用**subscribe(onNext, onError,...)**的时候, 闭包里的任务的执行所在队列.
+
+这两个函数接收的参数**ImmediateSchedulerType**是RxSwift定义的协议, 实际上已经帮我们实现了几个结构体可以直接使用, 比较常用的是**SerialDispatchQueueScheduler**, **ConcurrentDispatchQueueScheduler**, **ConcurrentMainScheduler**和**MainScheduler**.
+
+我们可以在**SerialDispatchQueueScheduler**和**ConcurrentDispatchQueueScheduler**的init函数中传入对应的队列.
+
+通过这2个函数, 可以便捷地把原来同步执行的函数放到子队列里面执行, 然后回到主线程处理结果, 比方:
+
+```swift
+func rx_downloadImage(withURL url: URL) -> Observable<Data> {
+    return Observable.create({ [unowned self] observer -> Disposable in 
+        let res = self.downloadImage(withURL: url)
+            if let data = res.data {
+                observer.onNext(data)
+                observer.onCompleted()
+            }else if let error = res.error {
+                observer.onError(error)
+            }
+        return Disposables.create()
+    })
+}
+
+Observable.zip(self.rx_downloadImage(withURL: url1), self.rx_downloadImage(withURL: url2), self.rx_downloadImage(withURL: url3))
+          .subscribeOn(ConcurrentMainScheduler.instance)
+          .observeOn(ConcurrentMainScheduler.asyncInstance)
+          .subscribe(onNext: {[unowned self] res in self.updateDatabase()}
+                     onError: {[unowned self] err in self.handleError(error: error)})
+
+```
 
 ---
