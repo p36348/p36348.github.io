@@ -276,9 +276,10 @@ public func subscribeOn(_ scheduler: ImmediateSchedulerType)
  
 而**observeOn**则是指定了处理结果所在的队列, 就是我们最后调用**subscribe(onNext, onError,...)**的时候, 闭包里的任务的执行所在队列.
 
-这两个函数接收的参数**ImmediateSchedulerType**是RxSwift定义的协议, 实际上已经帮我们实现了几个结构体可以直接使用, 比较常用的是**SerialDispatchQueueScheduler**, **ConcurrentDispatchQueueScheduler**, **ConcurrentMainScheduler**和**MainScheduler**.
+这两个函数接收的参数``ImmediateSchedulerType``是RxSwift定义的协议, 实际上已经帮我们实现了几个结构体可以直接使用, 比较常用的是``SerialDispatchQueueScheduler``, ``ConcurrentDispatchQueueScheduler``, ``ConcurrentMainScheduler``和``MainScheduler``.
 
-我们可以在**SerialDispatchQueueScheduler**和**ConcurrentDispatchQueueScheduler**的init函数中传入对应的队列.
+我们可以在``SerialDispatchQueueScheduler``和``ConcurrentDispatchQueueScheduler``的init函数中传入对应的队列.
+或者直接指定qos, 类似DispatchQueue的global函数.
 
 通过这2个函数, 可以便捷地把原来同步执行的函数放到子队列里面执行, 然后回到主线程处理结果, 比方:
 
@@ -297,7 +298,7 @@ func rx_downloadImage(withURL url: URL) -> Observable<Data> {
 }
 
 Observable.zip(self.rx_downloadImage(withURL: url1), self.rx_downloadImage(withURL: url2), self.rx_downloadImage(withURL: url3))
-          .subscribeOn(ConcurrentMainScheduler.instance)
+          .subscribeOn(ConcurrentDispatchQueueScheduler(qos: DispatchQoS.default))
           .observeOn(ConcurrentMainScheduler.asyncInstance)
           .subscribe(onNext: {[unowned self] res in self.updateDatabase()}
                      onError: {[unowned self] err in self.handleError(error: error)})
