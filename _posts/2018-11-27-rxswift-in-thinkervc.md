@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "RxSwift的实战记录"
+title:      "RxSwift的实战记录, 异步操作组合处理"
 subtitle:   " \"主要记录一下Thinker.vc工作期间项目中RxSwift的应用\""
 date:       2018-11-27 12:00:00
 author:     "P36348"
@@ -24,7 +24,7 @@ tags:
  
 - 任务管理不便,无法获取或取消上一次的请求/操作.
 
-- 异步响应不及时可能造成之前的请求后至, 让数据出错.
+- 异步响应不及时可能造成之前的请求后至, 让数据出错. 或在页面退出之后仍然在进行未完成的请求.
 
 网上较推荐的解决方案,就是使用**响应式编程框架**.
 大体分为[RxSwift](https://github.com/ReactiveX/RxSwift)和[ReactiveCocoa](https://github.com/ReactiveCocoa/ReactiveCocoa)/
@@ -35,7 +35,7 @@ tags:
 
 
 刚好公司的项目里面本来已经使用了[Swagger](https://github.com/swagger-api/swagger-codegen)来自动生成网络请求业务的代码, 
-自带[Moya](https://github.com/Moya/Moya)框架.
+自带[Moya](https://github.com/Moya/Moya)框架并选择的是**RxSwift**.
 于是就理所当然用了**RxSwift**.
 
 
@@ -53,8 +53,8 @@ tags:
 func updateLocation(success: (CLLocation) -> Void, failure: (Error) -> Void)
 // 请求设备
 func fetchDevices(near location: CLLocation, success: ([Device]) -> Void, failure: (Error) -> Void)
-// 根据数据更新界面
-func updateUI(with devices: [Device])
+// 更新数据以及界面
+func update(with devices: [Device])
 // 处理错误
 func handlError(_ error: Error)
 ```
@@ -65,7 +65,7 @@ func handlError(_ error: Error)
 self.updateLocation(success: { [weak self] location in
          self?.fetchDevices(near: location, 
                             success: { res in 
-                               self?.updateUI(with: res)
+                               self?.update(with: res)
                             }
                             failure: { err in 
                                self?.handlError(err)
@@ -88,7 +88,7 @@ self.tableView.pullToRefresh(action: { [unowned self] in
         self.updateLocation(success: { [weak self] location in
                  self?.fetchDevices(near: location, 
                                     success: { res in 
-                                       self?.updateUI(with: res)
+                                       self?.update(with: res)
                                     }
                                     failure: { err in 
                                        self?.handlError(err)
@@ -111,9 +111,9 @@ self.tableView.pullToRefresh(action: { [unowned self] in
 self.tableView.rx_pullToRefresh
     .flatMap({[unowned self] in self.rx_updateLocation()})
     .flatMap({[unowned self] in self.rx_fetchDevices(near: $0)})
-    .subscribe(onNext:  {[weak self] in self?.updateUI(with: $0)},
+    .subscribe(onNext:  {[weak self] in self?.update(with: $0)},
                onError: {[weak self] in self?.handleError($0)})
-    .disposed(by: self.bag)
+    .disposed(by: self.disposeBag)
 ```
 
 然后逐步解析这段代码, 关键点主要有:
@@ -125,8 +125,6 @@ self.tableView.rx_pullToRefresh
 - 函数式
   
   把处理回调的函数作为参数传递给**flatMap**和**subscribe**函数.
-  
-  **但是跟函数式编程的定义有点不一样, 以上几个函数是有副作用的.**
 
 - Error聚合处理
 
@@ -188,12 +186,13 @@ group.notify(queue: DispatchQueue.main) { [unowned self] in
 }
 ```
 
-**RxSwift**的做法:
+**RxSwift**的做法, 利用Observable的``zip``函数把多个下载任务聚合:
 
 ```swift
 Observable.zip(self.rx_downloadImage(withURL: url1), self.rx_downloadImage(withURL: url2), self.rx_downloadImage(withURL: url3))
           .subscribe(onNext: {[unowned self] res in self.updateDatabase()}
                      onError: {[unowned self] err in self.handleError(error: error)})
+          .disposed(by: self.disposeBag)
 ```
 
 ## 旧函数改造
@@ -304,5 +303,168 @@ Observable.zip(self.rx_downloadImage(withURL: url1), self.rx_downloadImage(withU
                      onError: {[unowned self] err in self.handleError(error: error)})
 
 ```
+
+## Observable的一点"小缺陷"
+
+在串行异步请求处理里面提到了这样的处理方式并不完善, 因为Observable有一个特点就是**抛出Error之后就会自动销毁**. 
+而这段代码里面, 下拉刷新的Observable是与另外两个异步操作``聚合``在一起的, 就是说如果网络请求或者定位的操作抛出Error, 那么用户下一次下拉刷新也是**不会被处理**的.
+
+所以, 为了避免这个问题, 解决方式有两种:
+
+1.不要把下拉刷新的Observable与另外两个异步操作的Observable聚合;
+
+2.``拦截``另外两个Observable可能抛出的Error
+
+第1个方案的解决代码:
+
+```swift
+self.tableView.rx_pullToRefresh
+    .subscribe(onNext: { [unowned self] in
+        _ = self.rx_updateLocation()
+                .flatMap({self.rx_fetchDevices(near: $0)})
+                .subscribe(onNext:  {self.update(with: $0)},
+                           onError: {self.handleError($0)})
+    })    
+    .disposed(by: self.disposeBag)
+```
+
+这样就可以保证``rx_pullToRefresh``会一直被observe, 但是这个处理方式会让代码可读性又下降了.
+
+所幸RxSwift还给我们提供了另外的选择, 利用Observable的``catchError``函数或者``catchErrorJustReturn``函数, 我们就可以把以上2个异步操作的错误拦截.
+
+```swift
+/**
+ Continues an observable sequence that is terminated by an error with the observable sequence produced by the handler.
+ 
+ - seealso: [catch operator on reactivex.io](http://reactivex.io/documentation/operators/catch.html)
+ 
+ - parameter handler: Error handler function, producing another observable sequence.
+ - returns: An observable sequence containing the source sequence's elements, followed by the elements produced by the handler's resulting observable sequence in case an error occurred.
+ */
+public func catchError(_ handler: @escaping (Error) throws -> RxSwift.Observable<Self.E>) -> RxSwift.Observable<Self.E>
+
+/**
+ Continues an observable sequence that is terminated by an error with a single element.
+ 
+ - seealso: [catch operator on reactivex.io](http://reactivex.io/documentation/operators/catch.html)
+ 
+ - parameter element: Last element in an observable sequence in case error occurs.
+ - returns: An observable sequence containing the source sequence's elements, followed by the `element` in case an error occurred.
+ */
+public func catchErrorJustReturn(_ element: Self.E) -> RxSwift.Observable<Self.E>
+```
+
+其中``catchErrorJustReturn``函数可以让我们产生一个默认值来继续事件链, 
+而``catchError``则接收一个闭包参数, 可以通过我们产生的Error来制定一个值给后续事件链或者直接在闭包里面处理Error.
+显然这个场景我们是需要处理Error的, 所以选用``catchError``. 而这样的话, ``subscribe``函数的``onError``就永远都不会执行了, 等于是把Error的处理提前到了``catchError``:
+
+```swift
+// 处理Error并且返回默认值
+func rx_handleError(_ error: Error) -> Observable<[Device]> {
+    // 处理Error, 生成默认参数
+    ...
+    return Observable.of(__defaultValue__)
+}
+// 请求列表的数据(聚合2个异步操作的Observable)
+func rx_fetchTableViewData() -> Observable<[Device]> {
+    return self.rx_updateLocation().flatMap({self.rx_fetchDevices(near: $0)})
+}
+
+self.tableView.rx_pullToRefresh
+    .flatMap({ [unowned self] in 
+        self.rx_fetchTableViewData()
+            .catchError({self.rx_handleError($0)})
+    })
+    .subscribe(onNext: {[weak self] in self?.update(with: $0)})
+    .disposed(by: self.disposeBag)
+```
+
+以上这样操作算是把Error处理了, 但是还是存在问题, 我们还需要再改进一下, 不要让handleResponseValue和handleError的代码分散.
+
+## 配合enum以及泛型更舒服地处理Error
+
+Swift里面的枚举类型是可以带参数的, 我们可以把我们要的结果抽象出来, 定义一个枚举:
+
+```swift
+enum Result {
+    case value([Device])
+    case error(Error)
+}
+```
+
+然后改动一下我们的fetch以及handle方式:
+
+```swift
+// 改进后的fetch函数把[Device]和Error转换成Result
+func rx_fetchTableViewData() -> Observable<Result> {
+    return self.rx_updateLocation()
+               .flatMap({self.rx_fetchDevices(near: $0)})
+               .map({Result.value($0)})
+               .catchError({Observable.of(Result.error($0))})
+}
+// 统一处理Result
+func handleResult(_ result: Result) {
+    switch result {
+        case .value(let value):
+            self.update(with: value)
+        case .error(let error):
+            self.handleError(error)
+    }
+}
+```
+
+最后我们这个``下拉刷新->更新定位坐标->获取附近设备->更新table``的代码就可以变成:
+
+```swift
+self.tableView.rx_pullToRefresh
+    .flatMap({[unowned self] in self.rx_fetchTableViewData()})
+    .subscribe(onNext: {[weak self] in self?.handleResult($0)})
+    .disposed(by: self.disposeBag)
+```
+
+但是, 实际上有这种场景的不止是设备列表, 还有比如附近的设备中心(Station), 这个``Result``显然可以承担更多的任务.
+
+所以我们利用Swift的泛型再做一次改进, 让``Result``适用于通用的场景:
+
+```swift
+enum Result<T> {
+    case value(T)
+    case error(Error)
+}
+func rx_fetchDeviceTableViewData() -> Observable<Result<[Device]>> {
+    return ...
+}
+func handleDeviceResult(_ result: Result<[Device]>) {
+    ...
+}
+func rx_fetchStationTableViewData() -> Observable<Result<[Station]>> {
+    return ...
+}
+func handleStationResult(_ result: Result<[Station]>) {
+    ...
+}
+```
+
+## 取消异步任务
+
+这个比较容易操作, 使用Observable的``disposed(by:)``函数, 在想要取消这个任务的时候把传入的``DisposeBag``实例销毁.
+
+比方说让ViewController持有一个DisposeBag, 在ViewController退出调用deinit的时候, 绑定在这个DisposeBag上的Observable就都不会继续处理了.
+
+## 小结
+
+以上是Thinker.vc项目中接入RxSwift对异步/并行操作的优化改进经历.概括来说, 就是:
+
+1.把多层的闭包嵌套降维成链式单层闭包
+
+2.把散落的Error处理整合起来
+
+3.更灵活方便地切换队列
+
+4.更明确展现异步操作之间的关系
+
+5.更方便顺应业务改变异步操作组合
+
+6.可以取消任务响应
 
 ---
