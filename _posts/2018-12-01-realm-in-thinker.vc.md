@@ -49,6 +49,33 @@ iOS数据持久化数据库方式解决方案, 主流的有FMDB(SQLite), CoreDat
 
 - 是否需要显示广告
 
+在Thinker.vc项目中会在一个`DatabaseService`模块里面管理数据库:
+
+```swift
+class DatabaseService {
+
+    /// 单例
+    static let shared: DatabaseService
+    
+    /// 基本数据库
+    public let defaultDatabase: Realm
+    
+    /// 用户相关数据库
+    public var userDatabase: Realm?
+}
+```
+
+`CogfigService`模块管理配置数据, 其中就包括了UserDefault要保存的数据: ([泛型配合UserDefault便捷加载数据](https://p36348.github.io//2018/12/13/genericity-userdefault/))
+
+```swift
+/// 关键字管理
+private struct UserDefaultKeys {
+    static let indexAdvertisementID: String = "UserDefaultKeys.indexAdvertisementID"
+    static let indexAdvertisementShown: String = "UserDefaultKeys.indexAdvertisementShown"
+    static let guideShown: String = "UserDefaultKeys.guideShown"
+}
+```
+
 ---
 
 ---
