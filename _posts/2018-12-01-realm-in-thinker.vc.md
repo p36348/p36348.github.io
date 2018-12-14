@@ -45,9 +45,11 @@ iOS数据持久化数据库方式解决方案, 主流的有FMDB(SQLite), CoreDat
 
 然后有少部分数据通过UserDefault保存, 包括:
 
-- 当前登录的用户id(或者其他标识)
+- 当前登录的用户标识(ID)
 
 - 是否需要显示广告
+
+- 需要显示的广告标识(ID)
 
 在Thinker.vc项目中会在一个`DatabaseService`模块里面管理数据库:
 
@@ -65,16 +67,56 @@ class DatabaseService {
 }
 ```
 
-`CogfigService`模块管理配置数据, 其中就包括了UserDefault要保存的数据: ([泛型配合UserDefault便捷加载数据](https://p36348.github.io//2018/12/13/genericity-userdefault/))
+其中`defaultDatabase`是固定的, 而`userDatabase`是根据登录用户切换的. 
+根据Realm的文档, 我们可以通过Realm.Configuration来配置数据库所在路径. 
+根据场景, `defaultDatabase`使用默认路径即可.
+
+而`userDatabase`则根据用户的id来配置. 
+这个需要通过`绑定`用户的登出与登入行为来切换.在Thinker.vc的项目中, 通过`RxSwift`来绑定`UserService`中对应的`Observable`. 先不讨论.
 
 ```swift
-/// 关键字管理
-private struct UserDefaultKeys {
-    static let indexAdvertisementID: String = "UserDefaultKeys.indexAdvertisementID"
-    static let indexAdvertisementShown: String = "UserDefaultKeys.indexAdvertisementShown"
-    static let guideShown: String = "UserDefaultKeys.guideShown"
+class DatabaseService {
+
+    /// 单例
+    static let shared: DatabaseService
+    
+    /// 基本数据库
+    public let defaultDatabase: Realm = {
+        var config = Realm.Configuration.defaultConfiguration
+        // buildVersion是app对应的build版本, 只增不减. 目的是为了数据库migration*
+        config.schemaVersion = UInt64(buildVersion as! String)!
+        return try! Realm(configuration: config)
+    }()
+    
+    /// 用户相关数据库
+    public var userDatabase: Realm? = nil
 }
 ```
+
+`CogfigService`模块管理配置数据, 其中就包括了UserDefault要保存的数据: 
+([泛型配合UserDefault便捷加载数据](https://p36348.github.io//2018/12/13/genericity-userdefault/))
+
+```swift
+// UserDefault关键字管理
+private struct UserDefaultKeys {
+    
+    /// 首页广告id
+    static let indexAdvertisementID: String = "UserDefaultKeys.indexAdvertisementID"
+    
+    /// 首页是否显示过
+    static let indexAdvertisementShown: String = "UserDefaultKeys.indexAdvertisementShown"
+    
+    /// 是否显示过引导页
+    static let guideShown: String = "UserDefaultKeys.guideShown"
+    
+    /// 登录用户id
+    static let userID: String = "UserDefaultKeys.userID"
+}
+```
+
+## 多线程调用
+
+
 
 ---
 
