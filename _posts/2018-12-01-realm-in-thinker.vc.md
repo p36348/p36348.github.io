@@ -19,7 +19,7 @@ iOS数据持久化数据库方式解决方案, 主流的有FMDB(SQLite), CoreDat
 
 三者中CoreData的使用比较不方便, FMDM需要关注线程安全的问题. 而Realm除了API友好, 在线程处理上也相对方便, 而且可以使用桌面应用[Realm Browser](https://itunes.apple.com/us/app/realm-browser/id1007457278?mt=12)查看iOS模拟器的数据库文件.
 
-## 需要持久化的有哪些数据
+## 需要持久化的数据
 
 - 启动广告数据
 
@@ -31,7 +31,7 @@ iOS数据持久化数据库方式解决方案, 主流的有FMDB(SQLite), CoreDat
 
 - 列表数据缓存
 
-## 保存策略
+## 持久化策略
 
 首先, 以上数据有一部分是和登录用户无关的, 而不同用户对应的数据应该分开存储. 所以在项目中的库会有N+1个(N是登录用户的个数).
 
@@ -78,7 +78,7 @@ class DatabaseService {
 class DatabaseService {
 
     /// 单例
-    static let shared: DatabaseService
+    static let shared: DatabaseService = DatabaseService()
     
     /// 基本数据库
     public let defaultDatabase: Realm = {
@@ -90,6 +90,22 @@ class DatabaseService {
     
     /// 用户相关数据库
     public var userDatabase: Realm? = nil
+    
+    private init() {
+        ...
+        ...
+    }
+    
+    /// 根据用户切换数据库
+    func updateUserDatabase(for user: UserModel?) {
+        guard let uid = user?.uid else {return}
+        
+        // https://realm.io/docs/swift/latest/#configuring-a-realm  根据uid命名数据库
+        let fileUrl = Realm.Configuration.defaultConfiguration.fileURL!.deletingLastPathComponent().appendingPathComponent("user_\(uid).realm")
+        let config = Realm.Configuration(fileURL: fileUrl, schemaVersion: UInt64(buildVersion as! String)!)
+        
+        self.userDatabase = try! Realm(configuration: config)
+    }
 }
 ```
 
