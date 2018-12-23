@@ -130,8 +130,9 @@ private struct UserDefaultKeys {
 }
 ```
 
-## 多线程调用
+## Realm的Data Model
 
+需要继承Realm的基本类`Object`, 使用非常方便.
 
 
 ---
