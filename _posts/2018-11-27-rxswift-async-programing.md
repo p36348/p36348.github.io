@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "RxSwift的实战记录, 异步操作组合处理"
-subtitle:   " \"主要记录一下Thinker.vc工作期间项目中RxSwift的应用\""
+title:      "RxSwift, 异步操作组合处理"
+subtitle:   " \"Thinker.vc工作期间项目中RxSwift的应用\""
 date:       2018-11-27 12:00:00
 author:     "P36348"
 header-img: "img/post-bg-2015.jpg"
