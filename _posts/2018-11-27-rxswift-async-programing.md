@@ -193,11 +193,11 @@ Observable.zip(self.rx_downloadImage(withURL: url1), self.rx_downloadImage(withU
           .disposed(by: self.disposeBag)
 ```
 
-## 旧函数改造
+## 改造耗时的同步函数
 
 ReactiveX框架确实很适合用来处理异步场景,只要使用者习惯了用return Observable来代替block, 并且要在Observable中传递处理结果.
 
-RxSwift提供了一个比较简单的方式创建Observable, 就是Observable的静态函数**create**:
+RxSwift提供了一个比较简单的方式创建Observable, 就是Observable的静态函数`create`:
 
 ```swift
 /**
@@ -230,12 +230,13 @@ func rx_downloadImage(withURL url: URL) -> Observable<Data> {
 }
 ```
 
-这样就封装了一个在内部子线程调用旧函数**downloadImage**的函数了. 对于子线程调用这个需求, 这里比较简单粗暴的用了GCD.
+这样就封装了一个在内部子线程调用旧函数`downloadImage`的函数. 对于子线程调用这个需求, 简单地使用了`global`队列来异步执行下载.
 
 ## 队列的切换
 
-其实对于还可以通过RxSwift提供的办法写得更好看.
-那就是通过:
+以上的做法实现了在函数内异步下载并回调的需求, 但是这个做法会让调用者无法控制下载任务在哪个队列执行. 
+
+如果我们有必要手动去控制这类函数执行的队列, 可以通过Rx提供的解决方案实现, 就是以下两个函数`observeOn`和`subscribeOn`:
 
 ```swift
 /**
@@ -302,7 +303,7 @@ Observable.zip(self.rx_downloadImage(withURL: url1), self.rx_downloadImage(withU
 
 ```
 
-## Observable的一点"小缺陷"
+## Observable的"缺陷"
 
 在串行异步请求处理里面提到了这样的处理方式并不完善, 因为Observable有一个特点就是**抛出Error之后就会自动销毁**. 
 而这段代码里面, 下拉刷新的Observable是与另外两个异步操作``聚合``在一起的, 就是说如果网络请求或者定位的操作抛出Error, 那么用户下一次下拉刷新也是**不会被处理**的.
@@ -448,7 +449,7 @@ func handleStationResult(_ result: Result<[Station]>) {
 如果在在项目中途接入Rx, 原来项目中已经存在大量通过GCD回调的函数了.
  
 这个时候把全部函数都改造是很高成本的, 而且部分函数可能在项目中被调用了很多次, 涉及的模块可能比较多, 但是不一定每个调用了这个函数的模块都有必要接入Rx. 
-在这种情况下可以使用Observable的`create`函数去封装原来的函数.
+在这种情况下通用可以使用Observable的`create`函数去封装原来的函数.
 
 比如有一个加载本地数据的函数:
 
@@ -474,6 +475,10 @@ function rx_loadDataFromLocal(filePath: URL) -> Observable<Result<Data>> {
     })
 }
 ```
+
+这样的函数改造和同步函数的改造一样, 有一个类似的缺陷, 就是**不可以再改变`loadDataFromLocal`函数在哪个队列执行**.
+
+相对的, 这个改造方式可以比较简便地复用现有的函数.
 
 ## 取消异步任务
 
