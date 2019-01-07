@@ -422,7 +422,7 @@ self.tableView.rx_pullToRefresh
 
 但是, 实际上有这种场景的不止是设备列表, 还有比如附近的设备中心(Station), 这个``Result``显然可以承担更多的任务.
 
-所以我们利用Swift的泛型再做一次改进, 让``Result``适用于通用的场景:
+利用Swift的泛型改进, 让``Result``适用于通用的场景:
 
 ```swift
 enum Result<T> {
@@ -445,7 +445,35 @@ func handleStationResult(_ result: Result<[Station]>) {
 
 ## 改造原来的GCD异步函数
 
-## 改造Delegate异步回调
+如果在在项目中途接入Rx, 原来项目中已经存在大量通过GCD回调的函数了.
+ 
+这个时候把全部函数都改造是很高成本的, 而且部分函数可能在项目中被调用了很多次, 涉及的模块可能比较多, 但是不一定每个调用了这个函数的模块都有必要接入Rx. 
+在这种情况下可以使用Observable的`create`函数去封装原来的函数.
+
+比如有一个加载本地数据的函数:
+
+```swift
+function loadDataFromLocal(filePath: URL, success: (Data)->Void, failure: (Error)->Void) {
+    ...
+    ...
+    ...
+}
+```
+
+在不改动原函数的情况下, 增加一个新的函数:
+
+```swift
+function rx_loadDataFromLocal(filePath: URL) -> Observable<Result<Data>> {
+    return Observable.create({ observer in
+    
+        loadDataFromLocal(filePath: filePath,
+                          success: {data in observer.onNext(.value(data))}, 
+                          failure: {error in observer.onNext(.error(error))})
+                          
+        return Disposables.create()
+    })
+}
+```
 
 ## 取消异步任务
 
