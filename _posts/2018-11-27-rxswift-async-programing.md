@@ -13,8 +13,6 @@ tags:
     - 响应式编程
 ---
 
-> “Yeah It's on. ”
-
 ## 响应式编程&链式编程
 
 接手thinker.vc的几个iOS共享经济项目, 有较多**后台定时的网络请求,定位和蓝牙操作的组合**. 
@@ -444,6 +442,10 @@ func handleStationResult(_ result: Result<[Station]>) {
     ...
 }
 ```
+
+## 改造原来的GCD异步函数
+
+## 改造Delegate异步回调
 
 ## 取消异步任务
 
