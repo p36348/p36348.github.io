@@ -480,6 +480,10 @@ function rx_loadDataFromLocal(filePath: URL) -> Observable<Result<Data>> {
 
 相对的, 这个改造方式可以比较简便地复用现有的函数.
 
+## Delegate回调
+
+除了GCD, delegate也是异步回调的一种常用方式, 而delegate回调其实也是有可能和异步函数嵌套组合.
+
 ## 取消异步任务
 
 这个比较容易操作, 使用Observable的``disposed(by:)``函数, 在想要取消这个任务的时候把传入的``DisposeBag``实例销毁.
