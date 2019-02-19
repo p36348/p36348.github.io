@@ -91,7 +91,7 @@ extension NSObject: ReactiveCompatible { }
 
 可以看到`Reactive`的定义非常简单，只有一个`base`属性，而这个属性是一个**泛型**。
 
-在文件的最后一行，***NSObject***被声明了遵守`ReactiveCompatible`，因此***UIScrollView***也遵守了该协议。
+在文件的最后一行，***NSObject***被声明了实现`ReactiveCompatible`，因此***UIScrollView***也实现了该协议。
 
 查看`ReactiveCompatible`的定义以及其下方的extension就可以看出，`rx`属性的泛型是该类型本身，也就是说***UISCrollView***的`rx`属性就是一个***UISCrollView***泛型的`Reactive`结构体，**其`base`属性就是这个*UIScrollView*本身的实例**。
 
@@ -190,5 +190,60 @@ open class RxScrollViewDelegateProxy
 可见在***RxCocoa***中，每一个有事件订阅者的***UIScrollView***都有与之对应的`RxScrollViewDelegateProxy`实例。所以下一个问题就是：
 
 代码`RxScrollViewDelegateProxy.proxy(for: base)`当中，`proxy(for:)`函数是如何把一个`RxScrollViewDelegateProxy`绑定到一个***UIScrollView***上的？
+
+## DelegateProxyType
+
+可以查看到`proxy(for:)`函数被定义在`DelegateProxyType`协议里，通过**extension**实现。
+
+```swift
+/// Returns existing proxy for object or installs new instance of delegate proxy.
+    ///
+    /// - parameter object: Target object on which to install delegate proxy.
+    /// - returns: Installed instance of delegate proxy.
+    ///
+    ///
+    ///     extension Reactive where Base: UISearchBar {
+    ///
+    ///         public var delegate: DelegateProxy<UISearchBar, UISearchBarDelegate> {
+    ///            return RxSearchBarDelegateProxy.proxy(for: base)
+    ///         }
+    ///
+    ///         public var text: ControlProperty<String> {
+    ///             let source: Observable<String> = self.delegate.observe(#selector(UISearchBarDelegate.searchBar(_:textDidChange:)))
+    ///             ...
+    ///         }
+    ///     }
+    public static func proxy(for object: ParentObject) -> Self {
+        MainScheduler.ensureExecutingOnScheduler()
+
+        let maybeProxy = self.assignedProxy(for: object)
+
+        let proxy: AnyObject
+        if let existingProxy = maybeProxy {
+            proxy = existingProxy
+        }
+        else {
+            proxy = castOrFatalError(self.createProxy(for: object))
+            self.assignProxy(proxy, toObject: object)
+            assert(self.assignedProxy(for: object) === proxy)
+        }
+        let currentDelegate = self._currentDelegate(for: object)
+        let delegateProxy: Self = castOrFatalError(proxy)
+
+        if currentDelegate !== delegateProxy {
+            delegateProxy._setForwardToDelegate(currentDelegate, retainDelegate: false)
+            assert(delegateProxy._forwardToDelegate() === currentDelegate)
+            self._setCurrentDelegate(proxy, to: object)
+            assert(self._currentDelegate(for: object) === proxy)
+            assert(delegateProxy._forwardToDelegate() === currentDelegate)
+        }
+
+        return delegateProxy
+    }
+```
+
+
+
+这个函数的参数只有1个`ParentObject`类型，其实在协议中定义了，就是一个***AnyObject***类型。
 
 `To be continued...`
