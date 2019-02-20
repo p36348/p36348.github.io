@@ -254,6 +254,16 @@ open class RxScrollViewDelegateProxy
 
 继续看完这个函数，如果`maybeProxy`得出的结果是空的，就会通过`createProxy`创建一个新的`Self`实例并绑定到`UIScrollView`的实例上。这里的`Self`对应的是那个实现`DelegateProxyType`的类型，对应上当前场景的就是`RxScrollViewDelegateProxy`。并且在绑定完成后再做了一次判断，确保对应`identifier`绑定的实例就是刚刚新创建出来的那个。（猜测：为了避免有别的线程也使用同样的identifier绑定了其他实例？）
 
+然后通过函数`_currentDelegate(for:)`获取当前***UIScrollView***的delegate，这是一个抽象函数，具体返回的"delegate"是根据传入参数实现的协议来定，详情可以在同一个文件下找到，分别有以下几种情况：
 
+1. ParentObject: HasDelegate, Self.Delegate == ParentObject.Delegate
+
+2. ParentObject: HasDataSource, Self.Delegate == ParentObject.DataSource
+
+3. ParentObject: HasPrefetchDataSource, Self.Delegate == ParentObject.PrefetchDataSource
+
+目前场景下属于情况1，所以看这个extension里面的实现，实际上是返回了传入参数的的delegate，而在**RxScrollViewDelegateProxy.swift**文件里就可以看到有***UIScrollView***的`HasDelegate`实现，这个delegate其实就是***UIScrollViewDelegate***。
+
+拿到这个delegate后，会和上面的proxy做对比(在对比之前又做了一次对proxy的判断，确认其类型就是当前需要的DelegateProxy)，然后做托管处理。也就是说，**如果在开发者设置订阅*UIScrollView*之前，*UIScrollView*已经有一个delegate，在这里就会把这个delegate托管给proxy，让proxy在收到*UIScrollView回调的时候转发给delegate，而实际上UIScrollView此时的delegate指向的是proxy。***
 
 `To be continued...`
