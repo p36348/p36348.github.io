@@ -246,4 +246,14 @@ open class RxScrollViewDelegateProxy
 
 这个函数的参数只有1个`ParentObject`类型，其实在协议中定义了，就是一个***AnyObject***类型。
 
+可以看到，这个操作需要确保在主线程上进行，换句话说，开发者不可以在子线程上订阅***UIScrollView***的回调事件。然后调用一个`assignedProxy`函数获取一个`maybeProxy`结果。而这个函数做的事情，就是通过***runtime***的***objc_getAssociatedObject***函数在`ParentObject`上查询是否有绑定的对象，使用的key是该`DelegateProxyType`实例本身的`identifier`变量。（此处有一个由Swift编译器引起的bug，Rx团队需要对***objc_getAssociatedObject***的直接结果做一个处理才可以返回，暂时不探究。）
+
+看到这里已经可以看出：
+
+**RxCocoa可以让开发者跳过实现Delegate函数直接获取UIKit组件的回调，其实是通过runtime把一个已经实现了Delegate的Proxy绑定到了这个组件上。**
+
+继续看完这个函数，如果`maybeProxy`得出的结果是空的，就会通过`createProxy`创建一个新的`Self`实例并绑定到`UIScrollView`的实例上。这里的`Self`对应的是那个实现`DelegateProxyType`的类型，对应上当前场景的就是`RxScrollViewDelegateProxy`。并且在绑定完成后再做了一次判断，确保对应`identifier`绑定的实例就是刚刚新创建出来的那个。（猜测：为了避免有别的线程也使用同样的identifier绑定了其他实例？）
+
+
+
 `To be continued...`
