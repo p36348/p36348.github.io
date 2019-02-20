@@ -15,7 +15,7 @@ tags:
     - 响应式编程
 ---
 
-## RxCocoa的调用(`scrollView.rx.didScroll`)
+## RxCocoa(`scrollView.rx.didScroll`)
 
 得益于**RxCocoa**对UIKit做了extension，我们使用UI组件的Rx封装时只需要调用`rx`属性，就可以访问到Rx框架的内容。比如需要订阅***UIScrollView***的滚动事件：
 
@@ -31,7 +31,9 @@ scrollView
 
 在原生的Cocoa框架中，要监听UIScrollView的滑动事件，需要通过实现***UIScrollViewDelegate***协议的`scrollViewDidScroll`函数。但是RxCocoa为何可以让用户通过简单的调用就得到了回调？***UIScrollViewDelegate***是如何被隐藏的？
 
-## `rx`属性是怎么来的
+***`rx`属性是怎么来的?***
+
+## Reactive&ReactiveCompatible
 
 通过查看，`rx`属性是一个`Reactive`的类型。在*Reactive.swift*文件，可以看到它是一个泛型**struct** 。而`rx`是在一个`ReactiveCompatible`的**protocol**里面定义的。
 
@@ -94,8 +96,6 @@ extension NSObject: ReactiveCompatible { }
 在文件的最后一行，***NSObject***被声明了实现`ReactiveCompatible`，因此***UIScrollView***也实现了该协议。
 
 查看`ReactiveCompatible`的定义以及其下方的extension就可以看出，`rx`属性的泛型是该类型本身，也就是说***UISCrollView***的`rx`属性就是一个***UISCrollView***泛型的`Reactive`结构体，**其`base`属性就是这个*UIScrollView*本身的实例**。
-
-##  `didScroll`是怎么来的
 
 顺着往下看，可以在*UIScrollView+Rx.swift*文件里找到，是通过**extension**的**where**语法对*UIScrollView*泛型的`Reactive`添加的一个*计算型属性*。
 
@@ -264,6 +264,6 @@ open class RxScrollViewDelegateProxy
 
 目前场景下属于情况1，所以看这个extension里面的实现，实际上是返回了传入参数的的delegate，而在**RxScrollViewDelegateProxy.swift**文件里就可以看到有***UIScrollView***的`HasDelegate`实现，这个delegate其实就是***UIScrollViewDelegate***。
 
-拿到这个delegate后，会和上面的proxy做对比(在对比之前又做了一次对proxy的判断，确认其类型就是当前需要的DelegateProxy)，然后做托管处理。也就是说，**如果在开发者设置订阅*UIScrollView*之前，*UIScrollView*已经有一个delegate，在这里就会把这个delegate托管给proxy，让proxy在收到*UIScrollView回调的时候转发给delegate，而实际上UIScrollView此时的delegate指向的是proxy。***
+拿到这个delegate后，会和上面的proxy做对比(在对比之前又做了一次对proxy的判断，确认其类型就是当前需要的DelegateProxy)，然后做托管处理。也就是说，**如果在开发者设置订阅*UIScrollView*之前，*UIScrollView*已经有一个delegate，在这里就会把这个delegate托管给proxy，让proxy在收到*UIScrollView回调的时候转发给delegate，而实际上UIScrollView此时的delegate指向的是proxy。通过proxy的`forwardToDelegate`可以找回这个在外部设置的delegate。***
 
-`To be continued...`
+`To be updated...`
