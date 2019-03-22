@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "RxSwift, MVVM"
-subtitle:   " \"工作期间项目中RxSwift的应用\""
+title:      "RxSwift, MVVM(待完成)"
+subtitle:   " 工作期间项目中RxSwift的应用"
 date:       2018-12-01 12:00:00
 author:     "P36348"
 header-img: "img/post-bg-2015.jpg"
