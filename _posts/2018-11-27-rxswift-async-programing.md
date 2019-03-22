@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "RxSwift, 异步操作组合处理"
-subtitle:   " \"工作期间项目中RxSwift的应用\""
+subtitle:   "工作期间项目中RxSwift的应用"
 date:       2018-11-27 12:00:00
 author:     "P36348"
 header-img: "img/post-bg-2015.jpg"
@@ -10,23 +10,22 @@ tags:
     - iOS
     - RxSwift
     - Swift
-    - 响应式编程
+    - Reactive Programing
 ---
 
 ## 响应式编程&链式编程
 
 接手thinker.vc的几个iOS共享经济项目, 有较多**后台定时的网络请求,定位和蓝牙操作的组合**. 
 原实现方案是直接把不同操作通过**闭包**嵌套起来, 如此一来有些比较头疼的问题:
- 
+
 - 异步操作组合出现"回调地狱", 每个组合操作的业务上有变动需要做大修.
- 
+
 - 任务管理不便,无法获取或取消上一次的请求/操作.
 
 - 异步响应不及时可能造成之前的请求后至, 让数据出错. 或在页面退出之后仍然在进行未完成的请求.
 
 网上较推荐的解决方案,就是使用**响应式编程框架**.
-大体分为[RxSwift](https://github.com/ReactiveX/RxSwift)和[ReactiveCocoa](https://github.com/ReactiveCocoa/ReactiveCocoa)/
-[ReactiveSwift](https://github.com/ReactiveCocoa/ReactiveSwift).
+大体分为[RxSwift](https://github.com/ReactiveX/RxSwift)和[ReactiveCocoa](https://github.com/ReactiveCocoa/ReactiveCocoa) / [ReactiveSwift](https://github.com/ReactiveCocoa/ReactiveSwift).
 
 **ReactiveCocoa**是从OC时代就开始有的, 在Swift时代迁移过来, 开始的时候只是单纯的调用OC源码混编, 到后来衍生出了**ReactiveSwift**.
 而**RxSwift**则是"原生"Swift诞生的.
@@ -129,6 +128,7 @@ self.tableView.rx_pullToRefresh
   原来每个异步操作都有一个Error的返回, 用闭包回调的方式需要在每次调用函数的时候传入. 
   而使用RxSwift的话, 其实所有Observable是被聚合成了1个, 就是在**subscribe**调用的那个, 而之前聚合起来的Observable的Error都可以在subscribe的**onError**参数里传递处理.
   
+
  这段代码仍不够完善, 优化方式后面会提到. 但是显而易见, 这一系列异步操作的条理顺序已经出来了, 而如果中间某一环需要修改, 也并不难操作.
 
 ---
@@ -271,7 +271,7 @@ public func subscribeOn(_ scheduler: ImmediateSchedulerType)
 ```
 
 其中**subscribeOn**是指定了Observable是在什么队列被订阅的, 这个队列同时也会是被订阅的Observable任务执行所在的队列.
- 
+
 而**observeOn**则是指定了处理结果所在的队列, 就是我们最后调用**subscribe(onNext, onError,...)**的时候, 闭包里的任务的执行所在队列.
 
 这两个函数接收的参数``ImmediateSchedulerType``是RxSwift定义的协议, 实际上已经帮我们实现了几个结构体可以直接使用, 比较常用的是``SerialDispatchQueueScheduler``, ``ConcurrentDispatchQueueScheduler``, ``ConcurrentMainScheduler``和``MainScheduler``.
@@ -447,7 +447,7 @@ func handleStationResult(_ result: Result<[Station]>) {
 ## 改造原来的GCD异步函数
 
 如果在在项目中途接入Rx, 原来项目中已经存在大量通过GCD回调的函数了.
- 
+
 这个时候把全部函数都改造是很高成本的, 而且部分函数可能在项目中被调用了很多次, 涉及的模块可能比较多, 但是不一定每个调用了这个函数的模块都有必要接入Rx. 
 在这种情况下通用可以使用Observable的`create`函数去封装原来的函数.
 
@@ -507,3 +507,4 @@ function rx_loadDataFromLocal(filePath: URL) -> Observable<Result<Data>> {
 6.可以取消任务响应
 
 ---
+`To be updated...`

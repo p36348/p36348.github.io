@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "RxCocoa如何把UIKit的Delegate桥接"
+title:      "RxCocoa中对UIKit的Delegate的处理"
 subtitle:   "记一次RxSwift/RxCocoa源码阅读"
 date:       2019-02-19 12:00:00
 author:     "P36348"
@@ -265,5 +265,7 @@ open class RxScrollViewDelegateProxy
 目前场景下属于情况1，所以看这个extension里面的实现，实际上是返回了传入参数的的delegate，而在**RxScrollViewDelegateProxy.swift**文件里就可以看到有***UIScrollView***的`HasDelegate`实现，这个delegate其实就是***UIScrollViewDelegate***。
 
 拿到这个delegate后，会和上面的proxy做对比(在对比之前又做了一次对proxy的判断，确认其类型就是当前需要的DelegateProxy)，然后做托管处理。也就是说，**如果在开发者设置订阅*UIScrollView*之前，*UIScrollView*已经有一个delegate，在这里就会把这个delegate托管给proxy，让proxy在收到*UIScrollView回调的时候转发给delegate，而实际上UIScrollView此时的delegate指向的是proxy。通过proxy的`forwardToDelegate`可以找回这个在外部设置的delegate。***
+
+---
 
 `To be updated...`

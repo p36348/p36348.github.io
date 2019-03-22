@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "RxSwift, MVVM, MVC"
+title:      "RxSwift, MVVM"
 subtitle:   " \"工作期间项目中RxSwift的应用\""
 date:       2018-12-01 12:00:00
 author:     "P36348"
@@ -24,8 +24,6 @@ MVVM模式可以减轻C的负担,`但是MVVM模式的总代码量也会相应增
 所以一个项目中的页面是有必要在MVC和MVVM两种模式中做切换的.
 
 ## 独立开的数据流中心 Service
-
-虽然页面会在MVC和MVVM中切换, 但是网络和数据层是保持独立开的. Model在MVC和MVVM模式中都只会扮演轻量的载体角色. 
 
 我在项目中构建了一个`Service`模块, 作为数据流的中心, 这个模块的作用有以下几点:
 
