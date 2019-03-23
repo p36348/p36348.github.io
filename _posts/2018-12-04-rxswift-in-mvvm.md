@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "RxSwift, MVVM(待完成)"
+title:      "RxSwift应用MVVM(待完成)"
 subtitle:   " 工作期间项目中RxSwift的应用"
 date:       2018-12-01 12:00:00
 author:     "P36348"
@@ -13,7 +13,6 @@ tags:
     - ReactiveX
     - 响应式编程
     - MVVM
-    - MVC
 ---
 
 ## 前言
@@ -27,19 +26,24 @@ MVVM模式可以减轻C的负担,`但是MVVM模式的总代码量也会相应增
 
 我在项目中构建了一个`Service`模块, 作为数据流的中心, 这个模块的作用有以下几点:
 
-1.存储Model数据
+1.单例模式, 项目共享数据与状态.
 
-2.调用异步函数例如 Network API, Location API, 第三方SDK API, Database API等操作
+2.调用异步函数(不产生副作用), 例如 Network API, Location API, 第三方SDK API, Database API等操作.
 
-3.`结合RxSwift框架提供一系列可监听的Observable供外部使用`
+3.提供全局可观察事件,
 
-## RxSwift & Stream
+## Observable
 
-ReactiveX中的Observable
+Observable是Rx框架中的最基本可观察类型, 分为广播类型和单播类型. 
 
-## MVC & RxSwift
+## 副作用
 
 
 
+## MVVM 结构
+
+![](/img/in-post/rx-swift-mvvm/mvvm_structure.png)
 
 ---
+
+`To be continued...`
