@@ -88,7 +88,7 @@ public class ReplaySubject<Element>
 
 ### Service模块之函数
 
-在设想中, 我希望`Service`是MVVM中的`ViewModel`的辅助, `ViewModel`调用`Service`提供的函数, 而`Service`应该帮`ViewModel**处理好与UI无关的业务逻辑**. 所以`Service`的函数应该有大量异步串行/并行的操作, 并且返回`Observable`类型.
+在设想中, 我希望`Service`是MVVM中的`ViewModel`的辅助, `ViewModel`调用`Service`提供的函数, 而`Service`应该帮`ViewModel`**处理好与UI无关的业务逻辑**. 所以`Service`的函数应该有大量异步串行/并行的操作, 并且返回`Observable`类型.
 
 剩下需要注意的就是, **函数的副作用**. 这一点非常值得注意, 因为稍不注意副作用的管理, 就会导致`ViewModel`收到一些莫名的数据更新. 对此, 人为约束:
 
