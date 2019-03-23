@@ -15,7 +15,7 @@ tags:
     - MVVM
 ---
 
-## 前言
+# 前言
 
 目前高移动端应用的要求已经越来越高, 主要体现在:
 
@@ -29,13 +29,13 @@ tags:
 
 我在项目中构建了一个`Service`模块, 作为数据流的中心, 这个模块的作用有以下几点:
 
-1.单例模式, 项目共享数据与状态.
+- 单例模式, 项目共享数据与状态.
 
-2.调用异步函数(不产生副作用), 例如 Network API, Location API, 第三方SDK API, Database API等操作.
+- 提供业务/功能相关的函数, 内部调用下一层异步函数, 例如 Network API, Location API, 第三方SDK API, Database API等操作.
 
-3.以属性的形式提供全局可观察事件, 例如 User登录状态变更, Location 更新.
+- 以属性的形式提供全局可观察事件, 例如 User登录状态变更, Location 更新.
 
-## Service模块中套用Observable
+### Service模块之Observable
 
 在Service模块中, 大部分函数的返回值和属性的类型都是Observable. 
 
@@ -45,11 +45,71 @@ Observable是Rx框架中的最基本可观察类型, 其中有一个需要用到
 
 而相对地, 函数返回的对象则只需要用非广播类型, 因为实际情况调用函数的回调都只是调用者自己需要subscribe. **`如果这个回调的结果有必要转化成广播类型, 则应该通过调用者自己转换`**.
 
-### 副作用
+### Service模块之属性
+
+既然已经可以确定, Service属性中的Observable需要用广播类型, 那如何选择**`PublishSubject`**和**`ReplaySubject`**?
+
+先看两个类型的描述:
+
+```swift
+/// Represents an object that is both an observable sequence as well as an observer.
+///
+/// Each notification is broadcasted to all subscribed observers.
+public final class PublishSubject<Element>
+    : Observable<Element>
+    , SubjectType
+    , Cancelable
+    , ObserverType
+	, SynchronizedUnsubscribeType {
+    ...
+    ...
+    ...
+}
+
+/// Represents an object that is both an observable sequence as well as an observer.
+///
+/// Each notification is broadcasted to all subscribed and future observers, subject to buffer trimming policies.
+public class ReplaySubject<Element>
+    : Observable<Element>
+    , SubjectType
+    , ObserverType
+	, Disposable {
+    ...
+    ...
+    ...
+}
+```
+
+从注释上面可以了解到, `xz`的不同在于, 它的数据会发送给将来订阅它的监听者, 也就是说, **`ReplaySubject`的数据可以追溯**.
+
+可以得出**`ReplaySubject`**的使用策略: 
+
+**当数据发送的时机早于数据被正式使用的时候, 我们用`ReplaySubject`, 这样可以避免我们丢失已经获得的数据.**
+
+### Service模块之函数
+
+在设想中, 我希望`Service`是MVVM中的`ViewModel`的辅助, `ViewModel`调用`Service`提供的函数, 而`Service`应该帮`ViewModel**处理好与UI无关的业务逻辑**. 所以`Service`的函数应该有大量异步串行/并行的操作, 并且返回`Observable`类型.
+
+剩下需要注意的就是, **函数的副作用**. 这一点非常值得注意, 因为稍不注意副作用的管理, 就会导致`ViewModel`收到一些莫名的数据更新. 对此, 人为约束:
+
+- 有副作用的函数, 会导致`Service`持有的数据改变, 或者导致`Service`的可观察对象发送数据的, 使用以下命名:
+  - 会返回数组数据的函数, `reloadxxx`表示重新刷新, `loadMorexxx`表示加载更多.
+  - 返回`hash`数据/`Model`的函数, 使用`updatexxx`表示更新.
+- 没有副作用的函数, 无论返回什么类型, 使用`fetchxxx`表示请求.
+
+## MVVM的核心模块: ViewModel
 
 
 
-### 最终的MVVM结构
+## 数据展示模块: View/ViewController
+
+
+
+## 数据: Model
+
+`Model`在MVVM中是最轻的一个模块, 除了保存数据的值, 它什么都不需要做, 所见即所有.
+
+# 最终的MVVM结构
 
 ![](/img/in-post/rx-swift-mvvm/mvvm_structure.png)
 
