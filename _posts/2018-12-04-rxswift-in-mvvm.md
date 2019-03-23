@@ -80,7 +80,7 @@ public class ReplaySubject<Element>
 }
 ```
 
-从注释上面可以了解到, `xz`的不同在于, 它的数据会发送给将来订阅它的监听者, 也就是说, **`ReplaySubject`的数据可以追溯**.
+从注释上面可以了解到, `ReplaySubject`的不同在于, 它的数据会发送给将来订阅它的监听者, 也就是说, **`ReplaySubject`的数据可以追溯**.
 
 可以得出**`ReplaySubject`**的使用策略: 
 
