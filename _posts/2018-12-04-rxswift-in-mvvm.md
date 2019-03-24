@@ -63,7 +63,6 @@ public final class PublishSubject<Element>
 	, SynchronizedUnsubscribeType {
     ...
     ...
-    ...
 }
 
 /// Represents an object that is both an observable sequence as well as an observer.
@@ -74,7 +73,6 @@ public class ReplaySubject<Element>
     , SubjectType
     , ObserverType
 	, Disposable {
-    ...
     ...
     ...
 }
@@ -95,9 +93,11 @@ public class ReplaySubject<Element>
 - 有副作用的函数, 会导致`Service`持有的数据改变, 或者导致`Service`的可观察对象发送数据的, 使用以下命名:
   - 会返回数组数据的函数, `reloadxxx`表示重新刷新, `loadMorexxx`表示加载更多.
   - 返回`hash`数据/`Model`的函数, 使用`updatexxx`表示更新.
-- 没有副作用的函数, 无论返回什么类型, 使用`fetchxxx`表示请求.
+- 没有副作用的函数:
+  - 请求数据的, 无论返回什么类型, 使用`fetchxxx`表示请求.
+  - 执行某类操作, 使用`performxxx`. 例如登录, 命名应该是`performSignin`.
 
-## MVVM的核心模块: ViewModel
+## MVVM的核心模块: ViewModel和View
 
 MVVM有别于MVC主要在于`ViewModel`模块, 设想中它的功能有以下:
 
@@ -106,13 +106,119 @@ MVVM有别于MVC主要在于`ViewModel`模块, 设想中它的功能有以下:
 - 内部处理UI的input数据, 调用对应`Service`的业务函数, 并提供输出口绑定到`View/ViewController`上.
 - 映射`Service`模块的一些可观察事件, 输出给`View/ViewController`subscribe.
 
+```swift
+class SignViewControllerViewModel {
+    // input
+    var usernameInput: BehaviorRelay<String> = BehaviorRelay(value: "")
+    var passwordInput: BehaviorRelay<String> = BehaviorRelay(value: "")
+    // output
+    var usernameInputEnable: Observable<Bool>
+    var passwordInputEnable: Observable<Bool>
+    var submitEnable: BehaviorRelay<Bool> = BehaviorRelay(value: true)
+    var submitTitle: BehaviorRelay<String> = BehaviorRelay(value: "Submit")
+    var indicatorHidden: Observable<Bool>
+    var stateHidden: Observable<Bool>
+    var state: Observable<String> {
+        return _internalState.asObservable()
+    }
+    ...
+    ...
+    
+    init(disposeBag: DisposeBag!) {
+        ...
+    }
+    
+    func handleClickSubmit() {
+        ...
+    }
+}
+
+```
+
+
+
+MVVM中的**V**是视图层, 在项目中视图层主要其实是`ViewController`和各种`View`的子类, 并不是单独指`View`.
+
+而`View/ViewController`要做的就是做布局, 以及调用`ViewModel`:
+
+```swi
+class SignViewController: UIViewController {
+    // 懒加载, 传入disposeBag
+   	var viewModel: SignViewControllerViewModel
+    // UI
+    @IBOutlet weak var usernameTf: UITextField!
+    @IBOutlet weak var passwordTf: UITextField!
+    @IBOutlet weak var submitButton: UIButton!
+    @IBOutlet weak var stateLabel: UILabel!
+    @IBOutlet weak var indicatorView: UIActivityIndicatorView!
+    
+    // deinit之后释放subscribtions
+    let disposeBag: DisposeBag = DisposeBag()
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        ...
+        ...
+        self.bindObservables()
+    }
+    
+    func bindObservables() {
+        // 数据输入 viewModel
+        self.usernameTf.rx.text.orEmpty
+            .bind(to: self.viewModel.usernameInput)
+            .disposed(by: self.disposeBag)
+        
+        self.passwordTf.rx.text.orEmpty
+            .bind(to: self.viewModel.passwordInput)
+            .disposed(by: self.disposeBag)
+        
+        self.submitButton.rx.tap
+            .subscribe(onNext: {_ in self.viewModel.handleClickSubmit()})
+            .disposed(by: self.disposeBag)
+        
+        
+        // viewModel 数据输出
+        self.viewModel.submitEnable
+            .bind(to: self.submitButton.rx.isEnabled)
+            .disposed(by: self.disposeBag)
+        
+        self.viewModel.usernameInputEnable
+            .bind(to: self.usernameTf.rx.isEnabled)
+            .disposed(by: self.disposeBag)
+        
+        self.viewModel.passwordInputEnable
+            .bind(to: self.passwordTf.rx.isEnabled)
+            .disposed(by: self.disposeBag)
+        
+        self.viewModel.submitTitle
+            .bind(to: self.submitButton.rx.title())
+            .disposed(by: self.disposeBag)
+        
+        self.viewModel.state
+            .bind(to: self.stateLabel.rx.text)
+            .disposed(by: self.disposeBag)
+        
+        self.viewModel.indicatorHidden
+            .bind(to: self.indicatorView.rx.isHidden)
+            .disposed(by: self.disposeBag)
+        
+        self.viewModel.indicatorHidden
+            .map({!$0})
+            .bind(to: self.indicatorView.rx.isAnimating)
+            .disposed(by: self.disposeBag)
+        
+        self.viewModel.stateHidden
+            .bind(to: self.stateLabel.rx.isHidden)
+            .disposed(by: self.disposeBag)
+    }
+}
+```
+
+在理想情况下, `View/ViewController`只面对`ViewModel`, 而`ViewModel`面对的就是`Service`, `Model`, `View/ViewController`
+
 注意: 因为`ViewController`中必定存在若干个`View`, 而`View`是可以复用的, 甚至`ViewController`也是可以作为`childViewController`被复用, 所以ViewController的应该有一个对应的ViewModel, 而ViewController的ViewModel**有可能需要持有若干个**View的ViewModel(有点绕, 出图表达).
 
 ![](/img/in-post/post-rx-swift-mvvm/view_model_structure.png)
-
-## 数据展示模块: View/ViewController
-
-
 
 ## 数据: Model
 
