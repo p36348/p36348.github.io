@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "RxSwift应用MVVM(待完成)"
+title:      "RxSwift应用MVVM"
 subtitle:   " 工作期间项目中RxSwift的应用"
 date:       2018-12-01 12:00:00
 author:     "P36348"
@@ -230,4 +230,4 @@ class SignViewController: UIViewController {
 
 ---
 
-`To be continued...`
+`持续更新...`
