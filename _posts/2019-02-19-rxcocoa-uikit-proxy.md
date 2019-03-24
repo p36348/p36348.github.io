@@ -268,4 +268,4 @@ open class RxScrollViewDelegateProxy
 
 ---
 
-`To be updated...`
+`持续更新...`
