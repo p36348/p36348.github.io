@@ -99,7 +99,16 @@ public class ReplaySubject<Element>
 
 ## MVVM的核心模块: ViewModel
 
+MVVM有别于MVC主要在于`ViewModel`模块, 设想中它的功能有以下:
 
+- 存储`View/ViewController`层要**直接显示**的数据, 注意不只是持有`Model`.
+- 针对对应的`View/ViewController`提供UI交互的输入口(Tableview, TextField, Button, Segmented等操作).
+- 内部处理UI的input数据, 调用对应`Service`的业务函数, 并提供输出口绑定到`View/ViewController`上.
+- 映射`Service`模块的一些可观察事件, 输出给`View/ViewController`subscribe.
+
+注意: 因为`ViewController`中必定存在若干个`View`, 而`View`是可以复用的, 甚至`ViewController`也是可以作为`childViewController`被复用, 所以ViewController的应该有一个对应的ViewModel, 而ViewController的ViewModel**有可能需要持有若干个**View的ViewModel(有点绕, 出图表达).
+
+![](/img/in-post/post-rx-swift-mvvm/view_model_structure.png)
 
 ## 数据展示模块: View/ViewController
 
@@ -111,7 +120,7 @@ public class ReplaySubject<Element>
 
 # 最终的MVVM结构
 
-![](/img/in-post/rx-swift-mvvm/mvvm_structure.png)
+![](/img/in-post/post-rx-swift-mvvm/mvvm_structure.png)
 
 ---
 
