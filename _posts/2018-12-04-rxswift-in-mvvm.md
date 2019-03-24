@@ -97,7 +97,7 @@ public class ReplaySubject<Element>
   - 请求数据的, 无论返回什么类型, 使用`fetchxxx`表示请求.
   - 执行某类操作, 使用`performxxx`. 例如登录, 命名应该是`performSignin`.
 
-## MVVM的核心模块: ViewModel和View
+## ViewModel和View
 
 MVVM有别于MVC主要在于`ViewModel`模块, 设想中它的功能有以下:
 
