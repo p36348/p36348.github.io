@@ -141,7 +141,7 @@ MVVM中的**V**是视图层, 在项目中视图层主要其实是`ViewController
 
 而`View/ViewController`要做的就是做布局, 以及调用`ViewModel`:
 
-```swi
+```swift
 class SignViewController: UIViewController {
     // 懒加载, 传入disposeBag
    	var viewModel: SignViewControllerViewModel
