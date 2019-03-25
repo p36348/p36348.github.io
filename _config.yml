@@ -59,7 +59,7 @@ kramdown:
 
 
 # Disqus settings
-disqus_username: p36348
+#disqus_username: p36348
 
 # Netease settings
 netease_comment: true
