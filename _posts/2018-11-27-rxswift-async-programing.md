@@ -98,7 +98,7 @@ self.tableView.pullToRefresh(action: { [unowned self] in
 
 一开始我尝试把更新定位和数据这一段操作封装为一个函数**func updateData()**, 然后在tableView的下拉刷新闭包里面调用. 
 
-如此类推也可以把**func updateData()**里面的操作继续拆分, 视觉上就不会面对这么难看的代码块. 
+如此类推也可以把`updateData`里面的操作继续拆分, 视觉上就不会面对这么难看的代码块. 
 
 **可是即使这样, 下拉刷新之后一系列的请求动作还是没有很直观的呈现出来, 代码也会因此变得相对零散, 最后甚至更加难看出原来的业务逻辑.**
 
@@ -117,17 +117,16 @@ self.tableView.rx_pullToRefresh
 
 - 链式
 
-  把原来通过闭包回调的函数都改造成了返回**Observable**的函数, 改造后回调的处理就通过链式调用**Observable**的**Operator**结合函数式编程来传递.
+  把原来通过闭包回调的函数都改造成了返回`Observable`的函数, 改造后回调的处理就通过链式调用`Observable`的**Operator**结合函数式编程来传递.
 
 - 函数式
   
-  把处理回调的函数作为参数传递给**flatMap**和**subscribe**函数.
+  把处理回调的函数作为参数传递给`flatMap`和`subscribe`函数.
 
 - Error聚合处理
 
   原来每个异步操作都有一个Error的返回, 用闭包回调的方式需要在每次调用函数的时候传入. 
-  而使用RxSwift的话, 其实所有Observable是被聚合成了1个, 就是在**subscribe**调用的那个, 而之前聚合起来的Observable的Error都可以在subscribe的**onError**参数里传递处理.
-  
+  而使用RxSwift的话, 其实所有Observable是被聚合成了1个, 就是在**subscribe**调用的那个, 而之前聚合起来的Observable的Error都可以在subscribe的`onError`参数里传递处理.
 
  这段代码仍不够完善, 优化方式后面会提到. 但是显而易见, 这一系列异步操作的条理顺序已经出来了, 而如果中间某一环需要修改, 也并不难操作.
 
@@ -211,7 +210,7 @@ Creates an observable sequence from a specified subscribe method implementation.
 public static func create(_ subscribe: @escaping (RxSwift.AnyObserver<Self.E>) -> Disposable) -> RxSwift.Observable<Self.E>
 ```
 
-这个函数只有一个闭包参数需要传入, 而这个闭包会给我们提供一个**Observer**的实例, 我们的操作都会在这个闭包里面执行, 而结果就通过**Observer**来派发, 比方上面的下载图片函数:
+这个函数只有一个闭包参数需要传入, 而这个闭包会给我们提供一个`Observer`的实例, 我们的操作都会在这个闭包里面执行, 而结果就通过`Observer`来派发, 比方上面的下载图片函数:
 
 ```swift
 func rx_downloadImage(withURL url: URL) -> Observable<Data> {
@@ -270,9 +269,9 @@ In order to invoke observer callbacks on a `scheduler`, use `observeOn`.
 public func subscribeOn(_ scheduler: ImmediateSchedulerType)
 ```
 
-其中**subscribeOn**是指定了Observable是在什么队列被订阅的, 这个队列同时也会是被订阅的Observable任务执行所在的队列.
+其中`subscribeOn`是指定了`Observable`是在什么队列被订阅的, 这个队列同时也会是被订阅的Observable任务执行所在的队列.
 
-而**observeOn**则是指定了处理结果所在的队列, 就是我们最后调用**subscribe(onNext, onError,...)**的时候, 闭包里的任务的执行所在队列.
+而`observeOn`则是指定了处理结果所在的队列, 就是我们最后调用**subscribe(onNext, onError,...)**的时候, 闭包里的任务的执行所在队列.
 
 这两个函数接收的参数``ImmediateSchedulerType``是RxSwift定义的协议, 实际上已经帮我们实现了几个结构体可以直接使用, 比较常用的是``SerialDispatchQueueScheduler``, ``ConcurrentDispatchQueueScheduler``, ``ConcurrentMainScheduler``和``MainScheduler``.
 
