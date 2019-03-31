@@ -227,10 +227,12 @@ func rx_downloadImage(withURL url: URL) -> Observable<Data> {
 以上的做法实现了在函数内异步下载并回调的需求, 但是这个做法会让调用者无法控制下载任务在哪个队列执行. 
 
 如果我们有必要手动去控制这类函数执行的队列, 可以通过Rx提供的解决方案实现, 就是以下两个函数`observeOn`和`subscribeOn`:
-
+>Wraps the source sequence in order to run its observer callbacks on the specified scheduler.
 ```swift
 public func observeOn(_ scheduler: ImmediateSchedulerType) -> PrimitiveSequence<Trait, Element> 
-
+```
+>Wraps the source sequence in order to run its subscription and unsubscription logic on the specified
+```swift
 public func subscribeOn(_ scheduler: ImmediateSchedulerType)
 ```
 
