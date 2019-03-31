@@ -481,13 +481,87 @@ function rx_loadDataFromLocal(filePath: URL) -> Observable<Result<Data>> {
 
 ## Delegate回调
 
-除了GCD, delegate也是异步回调的一种常用方式, 而delegate回调其实也是有可能和异步函数嵌套组合.
+除了GCD, delegate也是异步回调的一种常用方式, 而delegate回调也是有可能出现在异步函数嵌套组合中.比如: 一个弹出的选择框.
+
+用传统Delegate的做法, 需要在调用端实现delegate的函数.
+
+```swift
+class ModalViewController: UIViewController {
+    weak var delegate: ModalViewControllerDelegate? = nil
+    ...
+    
+    private func internalSelect(at index: Int) {
+        self.delegate?.modalViewController(didSelectAt: index)
+    }
+}
+protocol ModalViewController: NSObjectProtocol {
+    func modalViewController(didSelectAt index: Int)
+}
+// 调用端
+class ViewController: UIViewController, ModalViewControllerDelegate {
+    func performSelect() {
+        let modalViewController = ModalViewController()
+        modalViewController.delegate = self
+        self.present(viewController: modalViewController, animated: true, completion: nil)
+    }
+    
+    func modalViewController(didSelectAt index: Int) {
+        // 处理回调
+        self.handleSelect(at: index)
+    }
+    
+    func handleSelect(at index: Int) {
+        ...
+    }
+}
+```
+
+这种做法有一个明显的弊端: 当`ViewController`是一个业务量大的页面的时候, 它一般会有很多个这样的回调, 如此一来`ViewController`需要在定义的时候就声明实现很多个delegate, 并且会有很多个回调函数. 这样会对ViewController造成很大的代码量和增大了维护难度.
+
+如果运用RxSwift去处理这种回调, 我们可以压缩`ViewController`的代码:
+
+设想我们需要`ModalViewController`提供一个`Observbable`给外部观察选择事件. 那调用的时候就可以直接通过这个Observable知道选中值.如此一来, `ViewController`中回调对应的代码就可以控制在`performSelect`函数中.
+
+```swift
+// 调用端
+class ViewController: UIViewController {
+    func performSelect() {
+        let modalViewController = ModalViewController()
+        
+        self.present(viewController: modalViewController, animated: true, completion: nil)
+        
+        modalViewController.rx_didSelect
+        	.subscribe(onNext: { [weak self] index in
+				// 处理回调
+            	...
+        	})
+    }
+}
+```
+
+为了实现这个目的, 我们只需如下改造`ModalViewController`:
+
+```swift
+class ModalViewController: UIViewController {
+    // PublishSubject不适合对外公开, 避免外部调用入口函数.
+    var rx_didSelect: Obsevable<Int> {
+        return self.rx_internal_didSelect.asObservable()
+    }
+    private let rx_internal_didSelect: PublishSubject<Int> = PublishSubject()
+    ...
+    private func internalSelect(at index: Int) {
+        self.rx_internal_didSelect.onNext(index)
+    }
+}
+```
+
+
 
 ## 取消异步任务
 
-这个比较容易操作, 使用Observable的``disposed(by:)``函数, 在想要取消这个任务的时候把传入的``DisposeBag``实例销毁.
+这个比较容易操作, 使用`Observable`的``disposed(by:)``函数, 在想要取消这个任务的时候把传入的``DisposeBag``实例销毁.
 
-比方说让ViewController持有一个DisposeBag, 在ViewController退出调用deinit的时候, 绑定在这个DisposeBag上的Observable就都不会继续处理了.
+比方说让`ViewController`持有一个`DisposeBag`, 在`ViewController`调用`deinit`的时候, 绑定在这个`DisposeBag`上的`Observable`就都不会继续处理了.
 
 ## 小结
 
