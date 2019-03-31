@@ -35,8 +35,6 @@ tags:
 自带[Moya](https://github.com/Moya/Moya)框架并选择的是**RxSwift**.
 于是就理所当然用了**RxSwift**.
 
-
-<p id = "build"></p>
 ---
 
 ## 串行异步请求处理
@@ -198,15 +196,8 @@ ReactiveX框架确实很适合用来处理异步场景,只要使用者习惯了�
 
 RxSwift提供了一个比较简单的方式创建Observable, 就是Observable的静态函数`create`:
 
+> Creates an observable sequence from a specified subscribe method implementation.
 ```swift
-/**
-Creates an observable sequence from a specified subscribe method implementation.
-    
-- seealso: [create operator on reactivex.io](http://reactivex.io/documentation/operators/create.html)
-    
-- parameter subscribe: Implementation of the resulting observable sequence's `subscribe` method.
-- returns: The observable sequence with the specified implementation for the `subscribe` method.
-*/
 public static func create(_ subscribe: @escaping (RxSwift.AnyObserver<Self.E>) -> Disposable) -> RxSwift.Observable<Self.E>
 ```
 
@@ -238,34 +229,8 @@ func rx_downloadImage(withURL url: URL) -> Observable<Data> {
 如果我们有必要手动去控制这类函数执行的队列, 可以通过Rx提供的解决方案实现, 就是以下两个函数`observeOn`和`subscribeOn`:
 
 ```swift
-/**
- Wraps the source sequence in order to run its observer callbacks on the specified scheduler.
-
- This only invokes observer callbacks on a `scheduler`. In case the subscription and/or unsubscription
- actions have side-effects that require to be run on a scheduler, use `subscribeOn`.
-
-- seealso: [observeOn operator on reactivex.io](http://reactivex.io/documentation/operators/observeon.html)
-
-- parameter scheduler: Scheduler to notify observers on.
-- returns: The source sequence whose observations happen on the specified scheduler.
-*/
 public func observeOn(_ scheduler: ImmediateSchedulerType) -> PrimitiveSequence<Trait, Element> 
-    
-/**
- Wraps the source sequence in order to run its subscription and unsubscription logic on the specified 
- scheduler. 
-    
- This operation is not commonly used.
-    
- This only performs the side-effects of subscription and unsubscription on the specified scheduler. 
-    
-In order to invoke observer callbacks on a `scheduler`, use `observeOn`.
 
-- seealso: [subscribeOn operator on reactivex.io](http://reactivex.io/documentation/operators/subscribeon.html)
-    
-- parameter scheduler: Scheduler to perform subscription and unsubscription actions on.
-- returns: The source sequence whose subscriptions and unsubscriptions happen on the specified scheduler.
-*/
 public func subscribeOn(_ scheduler: ImmediateSchedulerType)
 ```
 
@@ -330,25 +295,12 @@ self.tableView.rx_pullToRefresh
 
 所幸RxSwift还给我们提供了另外的选择, 利用Observable的``catchError``函数或者``catchErrorJustReturn``函数, 我们就可以把以上2个异步操作的错误拦截.
 
+>Continues an observable sequence that is terminated by an error with the observable sequence produced by the handler.
 ```swift
-/**
- Continues an observable sequence that is terminated by an error with the observable sequence produced by the handler.
- 
- - seealso: [catch operator on reactivex.io](http://reactivex.io/documentation/operators/catch.html)
- 
- - parameter handler: Error handler function, producing another observable sequence.
- - returns: An observable sequence containing the source sequence's elements, followed by the elements produced by the handler's resulting observable sequence in case an error occurred.
- */
 public func catchError(_ handler: @escaping (Error) throws -> RxSwift.Observable<Self.E>) -> RxSwift.Observable<Self.E>
-
-/**
- Continues an observable sequence that is terminated by an error with a single element.
- 
- - seealso: [catch operator on reactivex.io](http://reactivex.io/documentation/operators/catch.html)
- 
- - parameter element: Last element in an observable sequence in case error occurs.
- - returns: An observable sequence containing the source sequence's elements, followed by the `element` in case an error occurred.
- */
+```
+>Continues an observable sequence that is terminated by an error with a single element.
+```swift
 public func catchErrorJustReturn(_ element: Self.E) -> RxSwift.Observable<Self.E>
 ```
 
